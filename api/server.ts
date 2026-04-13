@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { createServer } from 'http'
+import path from 'node:path'
 import { swapRouter } from './routes/swap'
 import { liquidityRouter } from './routes/liquidity'
 import { marketRouter } from './routes/market'
@@ -20,6 +21,7 @@ app.use(helmet())
 app.use(cors())
 app.use(express.json())
 app.use(globalLimiter)
+app.use('/ui', express.static(path.resolve(__dirname, '../ui')))
 
 // ── Initialize Algorand Service (singleton) ──
 const algorandService = new AlgorandService()
@@ -47,6 +49,10 @@ app.get('/api/v1', (_req, res) => {
       websocket: 'ws://host:port/ws',
     },
   })
+})
+
+app.get('/', (_req, res) => {
+  res.redirect('/ui')
 })
 
 // ── 404 handler ──

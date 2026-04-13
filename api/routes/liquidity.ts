@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { AlgorandService } from '../services/algorand'
 import { webhookService } from '../services/webhook'
 import { writeLimiter } from '../middleware/rateLimiter'
+import { requireAuth } from '../middleware/auth'
 
 export const liquidityRouter = Router()
 
@@ -14,7 +15,7 @@ function getService(req: Request): AlgorandService {
  * Body: { sender, amountAlgo, amountB }
  * Returns unsigned transaction group
  */
-liquidityRouter.post('/add', writeLimiter, async (req: Request, res: Response) => {
+liquidityRouter.post('/add', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const service = getService(req)
     const { sender, amountAlgo, amountB } = req.body
@@ -46,7 +47,7 @@ liquidityRouter.post('/add', writeLimiter, async (req: Request, res: Response) =
  * Body: { sender, lpAmount }
  * Returns unsigned transaction group
  */
-liquidityRouter.post('/remove', writeLimiter, async (req: Request, res: Response) => {
+liquidityRouter.post('/remove', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const service = getService(req)
     const { sender, lpAmount } = req.body
@@ -72,7 +73,7 @@ liquidityRouter.post('/remove', writeLimiter, async (req: Request, res: Response
  * POST /api/v1/liquidity/submit
  * Body: { signedTxns: string[] }
  */
-liquidityRouter.post('/submit', writeLimiter, async (req: Request, res: Response) => {
+liquidityRouter.post('/submit', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const service = getService(req)
     const { signedTxns } = req.body
@@ -84,7 +85,12 @@ liquidityRouter.post('/submit', writeLimiter, async (req: Request, res: Response
 
     const result = await service.submitSignedTxns(signedTxns)
 
-    webhookService.fireEvent('liquidity_changed', {
+    await webhookService.fireEvent('liquidity_changed', {
+      txn_id: result.txId,
+      confirmed_round: result.confirmedRound,
+    })
+    ;(global as any).__broadcastTrade?.({
+      event: 'liquidity_changed',
       txn_id: result.txId,
       confirmed_round: result.confirmedRound,
     })

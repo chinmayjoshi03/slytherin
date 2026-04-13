@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import { AlgorandService } from '../services/algorand'
+import { webhookService } from '../services/webhook'
 
 const POLL_INTERVAL_MS = 4000 // ~1 block on Algorand
 
@@ -88,6 +89,13 @@ export function setupWebSocket(server: HttpServer, algorandService: AlgorandServ
         })
         priceSubscribers.forEach((ws) => {
           if (ws.readyState === WebSocket.OPEN) ws.send(msg)
+        })
+        await webhookService.fireEvent('price_update', {
+          pair: 'ALGO/TUSDC',
+          priceAlgoInTusdc: pool.priceAtoB,
+          priceTusdcInAlgo: pool.priceBtoA,
+          reserveAlgo: pool.reserveA.toString(),
+          reserveTusdc: pool.reserveB.toString(),
         })
       }
     } catch (err) {

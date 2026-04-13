@@ -58,6 +58,7 @@ export class AmmDex extends arc4.Contract {
         unitName: 'SDLP',
         manager: Global.currentApplicationAddress,
         reserve: Global.currentApplicationAddress,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -68,6 +69,7 @@ export class AmmDex extends arc4.Contract {
         xferAsset: assetB,
         assetReceiver: Global.currentApplicationAddress,
         assetAmount: 0,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -93,6 +95,7 @@ export class AmmDex extends arc4.Contract {
     if (this.totalLp.value === Uint64(0)) {
       const product: uint64 = amountA * amountB
       const sqrtProduct: uint64 = op.sqrt(product)
+      assert(sqrtProduct > MIN_LIQUIDITY, 'INITIAL_LIQUIDITY_TOO_LOW')
       lpToMint = sqrtProduct - MIN_LIQUIDITY
       const locked: uint64 = lpToMint + MIN_LIQUIDITY
       this.totalLp.value = locked
@@ -116,6 +119,7 @@ export class AmmDex extends arc4.Contract {
         xferAsset: this.lpToken.value,
         assetReceiver: Txn.sender,
         assetAmount: lpToMint,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -133,6 +137,7 @@ export class AmmDex extends arc4.Contract {
 
     const lpAmount: uint64 = lpXfer.assetAmount
     assert(lpAmount > Uint64(0), 'ZERO_LP_BURN')
+    assert(lpAmount < this.totalLp.value, 'INSUFFICIENT_LP')
 
     const outA: uint64 = (lpAmount * this.reserveA.value) / this.totalLp.value
     const outB: uint64 = (lpAmount * this.reserveB.value) / this.totalLp.value
@@ -147,10 +152,21 @@ export class AmmDex extends arc4.Contract {
     this.reserveB.value = newResB
     this.totalLp.value = newTotalLp
 
+    // Move LP sent to the app account into a sink to keep on-chain LP balances aligned with totalLp accounting.
+    itxn
+      .assetTransfer({
+        xferAsset: this.lpToken.value,
+        assetReceiver: op.Global.zeroAddress,
+        assetAmount: lpAmount,
+        fee: Uint64(0),
+      })
+      .submit()
+
     itxn
       .payment({
         receiver: Txn.sender,
         amount: outA,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -159,6 +175,7 @@ export class AmmDex extends arc4.Contract {
         xferAsset: this.assetB.value,
         assetReceiver: Txn.sender,
         assetAmount: outB,
+        fee: Uint64(0),
       })
       .submit()
   }
@@ -190,6 +207,7 @@ export class AmmDex extends arc4.Contract {
         xferAsset: this.assetB.value,
         assetReceiver: Txn.sender,
         assetAmount: amountOut,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -223,6 +241,7 @@ export class AmmDex extends arc4.Contract {
       .payment({
         receiver: Txn.sender,
         amount: amountOut,
+        fee: Uint64(0),
       })
       .submit()
 
@@ -258,6 +277,43 @@ export class AmmDex extends arc4.Contract {
     return this.feeBps.value
   }
 
+  /**
+   * Compatibility helper for checklist-based integrations:
+   * direction: 0 => ALGO -> Asset B, 1 => Asset B -> ALGO
+   */
+  @arc4.abimethod({ readonly: true })
+  swap(direction: uint64, amountIn: uint64, minAmountOut: uint64): uint64 {
+    assert(amountIn > Uint64(0), 'ZERO_INPUT')
+    const amountOut: uint64 =
+      direction === Uint64(0)
+        ? this._computeOutput(amountIn, this.reserveA.value, this.reserveB.value)
+        : this._computeOutput(amountIn, this.reserveB.value, this.reserveA.value)
+    assert(amountOut >= minAmountOut, 'SLIPPAGE_EXCEEDED')
+    return amountOut
+  }
+
+  /** Compatibility helper for checklist-based integrations */
+  @arc4.abimethod({ readonly: true })
+  addLiquidityPreview(amountAlgo: uint64, amountAsset: uint64): uint64 {
+    return this._previewMint(amountAlgo, amountAsset)
+  }
+
+  /** Compatibility helper for checklist-based integrations */
+  @arc4.abimethod({ readonly: true })
+  removeLiquidityPreview(lpAmount: uint64): [uint64, uint64] {
+    assert(lpAmount > Uint64(0), 'ZERO_LP_BURN')
+    assert(this.totalLp.value > Uint64(0), 'NO_LP_SUPPLY')
+    const amountAlgo: uint64 = (lpAmount * this.reserveA.value) / this.totalLp.value
+    const amountAsset: uint64 = (lpAmount * this.reserveB.value) / this.totalLp.value
+    return [amountAlgo, amountAsset]
+  }
+
+  /** Compatibility helper for checklist-based integrations */
+  @arc4.abimethod({ readonly: true })
+  getReserves(): [uint64, uint64] {
+    return [this.reserveA.value, this.reserveB.value]
+  }
+
   /** Governor-only: update swap fee */
   @arc4.abimethod()
   setFee(newFeeBps: uint64): void {
@@ -278,5 +334,17 @@ export class AmmDex extends arc4.Contract {
     const denominator: uint64 = denominatorBase + amountInWithFee
     const result: uint64 = numerator / denominator
     return result
+  }
+
+  private _previewMint(amountA: uint64, amountB: uint64): uint64 {
+    if (this.totalLp.value === Uint64(0)) {
+      const product: uint64 = amountA * amountB
+      const sqrtProduct: uint64 = op.sqrt(product)
+      assert(sqrtProduct > MIN_LIQUIDITY, 'INITIAL_LIQUIDITY_TOO_LOW')
+      return sqrtProduct - MIN_LIQUIDITY
+    }
+    const lpFromA: uint64 = (amountA * this.totalLp.value) / this.reserveA.value
+    const lpFromB: uint64 = (amountB * this.totalLp.value) / this.reserveB.value
+    return lpFromA < lpFromB ? lpFromA : lpFromB
   }
 }

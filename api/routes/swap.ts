@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { AlgorandService } from '../services/algorand'
 import { webhookService } from '../services/webhook'
 import { readLimiter, writeLimiter } from '../middleware/rateLimiter'
+import { requireAuth } from '../middleware/auth'
 
 export const swapRouter = Router()
 
@@ -18,6 +19,7 @@ swapRouter.get('/quote', readLimiter, async (req: Request, res: Response) => {
     const service = getService(req)
     const direction = req.query.direction as string
     const amountIn = BigInt(req.query.amountIn as string || '0')
+    const slippageBps = Number(req.query.slippageBps ?? 100)
 
     if (!direction || !amountIn) {
       res.status(400).json({ error: 'MISSING_PARAMS', message: 'direction and amountIn required' })
@@ -48,6 +50,8 @@ swapRouter.get('/quote', readLimiter, async (req: Request, res: Response) => {
       ...quote,
       amountIn: quote.amountIn.toString(),
       amountOut: quote.amountOut.toString(),
+      minOutput: service.applySlippage(quote.amountOut, slippageBps).toString(),
+      slippageBps,
       fee: quote.fee.toString(),
     })
   } catch (err) {
@@ -60,7 +64,7 @@ swapRouter.get('/quote', readLimiter, async (req: Request, res: Response) => {
  * Body: { sender, direction, amountIn, minOutput, slippageBps? }
  * Returns unsigned transaction group (base64 encoded)
  */
-swapRouter.post('/execute', writeLimiter, async (req: Request, res: Response) => {
+swapRouter.post('/execute', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const service = getService(req)
     const { sender, direction, amountIn, minOutput, slippageBps } = req.body
@@ -82,7 +86,7 @@ swapRouter.post('/execute', writeLimiter, async (req: Request, res: Response) =>
       const reserveIn = direction === 'algo_to_asset' ? pool.reserveA : pool.reserveB
       const reserveOut = direction === 'algo_to_asset' ? pool.reserveB : pool.reserveA
       const quote = service.calculateSwapOutput(amtIn, reserveIn, reserveOut, pool.feeBps)
-      minOut = quote.amountOut - (quote.amountOut * BigInt(slippage)) / 10_000n
+      minOut = service.applySlippage(quote.amountOut, slippage)
     }
 
     let unsignedTxns: string[]
@@ -111,7 +115,7 @@ swapRouter.post('/execute', writeLimiter, async (req: Request, res: Response) =>
  * POST /api/v1/swap/submit
  * Body: { signedTxns: string[] } — base64 encoded signed transactions
  */
-swapRouter.post('/submit', writeLimiter, async (req: Request, res: Response) => {
+swapRouter.post('/submit', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const service = getService(req)
     const { signedTxns } = req.body
@@ -124,7 +128,12 @@ swapRouter.post('/submit', writeLimiter, async (req: Request, res: Response) => 
     const result = await service.submitSignedTxns(signedTxns)
 
     // Fire webhook event
-    webhookService.fireEvent('swap_confirmed', {
+    await webhookService.fireEvent('swap_confirmed', {
+      txn_id: result.txId,
+      confirmed_round: result.confirmedRound,
+    })
+    ;(global as any).__broadcastTrade?.({
+      event: 'swap_confirmed',
       txn_id: result.txId,
       confirmed_round: result.confirmedRound,
     })

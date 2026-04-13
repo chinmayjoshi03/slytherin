@@ -23,8 +23,8 @@ export async function deploy() {
   })
 
   const { appClient } = await factory.deploy({
-    onUpdate: 'append',
-    onSchemaBreak: 'append',
+    onUpdate: 'update',
+    onSchemaBreak: 'replace',
   })
 
   console.log(`  AMM DEX deployed — App ID: ${appClient.appClient.appId}, Address: ${appClient.appAddress}`)
@@ -82,7 +82,7 @@ export async function deploy() {
   }
 
   // ── Step 4: Seed initial liquidity ──
-  console.log('Adding initial liquidity (10 ALGO + 5 TUSDC)...')
+  console.log('Adding initial liquidity...')
 
   // Opt deployer into assets if needed
   const deployerInfo = await algorand.client.algod.accountInformation(deployer.addr.toString()).do()
@@ -95,18 +95,31 @@ export async function deploy() {
     await algorand.send.assetOptIn({ sender: deployer.addr, assetId: lpTokenId })
   }
 
+  // Make initial seed resilient for low-funded testnet wallets.
+  const deployerBalance = BigInt((deployerInfo as any).amount ?? 0)
+  const minSpendable = 2_000_000n // keep a safety buffer for fees/MBR
+  const maxAlgoForLiq = deployerBalance > minSpendable ? deployerBalance - minSpendable : 0n
+  const amountAlgoForLiq = maxAlgoForLiq >= 10_000_000n ? 10_000_000n : maxAlgoForLiq
+  const amountAssetForLiq = amountAlgoForLiq / 2n
+
+  if (amountAlgoForLiq <= 0n || amountAssetForLiq <= 0n) {
+    throw new Error('INSUFFICIENT_BALANCE_FOR_INITIAL_LIQUIDITY')
+  }
+
+  console.log(`  Using initial liquidity: ${amountAlgoForLiq} microALGO + ${amountAssetForLiq} microTUSDC`)
+
   const addLiqResult = await appClient.send.addLiquidity({
     args: {
       payAlgo: await algorand.createTransaction.payment({
         sender: deployer.addr,
         receiver: appClient.appAddress,
-        amount: (10).algo(),
+        amount: Number(amountAlgoForLiq).microAlgo(),
       }),
       xferB: await algorand.createTransaction.assetTransfer({
         sender: deployer.addr,
         receiver: appClient.appAddress,
         assetId: testUsdcId,
-        amount: 5_000_000n, // 5 TUSDC
+        amount: amountAssetForLiq,
       }),
     },
     extraFee: (1000).microAlgo(), // 1 inner txn: LP token transfer

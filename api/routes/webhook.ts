@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express'
 import { webhookService } from '../services/webhook'
+import { requireAuth } from '../middleware/auth'
 
 export const webhookRouter = Router()
 
 /** POST /api/v1/webhooks/register — register a webhook URL */
-webhookRouter.post('/register', (req: Request, res: Response) => {
+webhookRouter.post('/register', requireAuth, (req: Request, res: Response) => {
   const { url, events } = req.body
 
   if (!url) {
@@ -27,7 +28,7 @@ webhookRouter.post('/register', (req: Request, res: Response) => {
 })
 
 /** GET /api/v1/webhooks/list — list registered webhooks */
-webhookRouter.get('/list', (_req: Request, res: Response) => {
+webhookRouter.get('/list', requireAuth, (_req: Request, res: Response) => {
   const hooks = webhookService.list().map((h) => ({
     id: h.id,
     url: h.url,
@@ -39,7 +40,7 @@ webhookRouter.get('/list', (_req: Request, res: Response) => {
 })
 
 /** DELETE /api/v1/webhooks/:id — remove a webhook */
-webhookRouter.delete('/:id', (req: Request, res: Response) => {
+webhookRouter.delete('/:id', requireAuth, (req: Request, res: Response) => {
   const id = req.params.id as string
   const deleted = webhookService.unregister(id)
   if (deleted) {

@@ -20,6 +20,7 @@ export interface SwapQuote {
   priceImpact: number
   fee: bigint
   exchangeRate: number
+  minOutput?: bigint
 }
 
 export class AlgorandService {
@@ -36,6 +37,7 @@ export class AlgorandService {
     this.appId = parseInt(process.env.APP_ID || '0', 10)
     this.assetBId = parseInt(process.env.ASSET_B_ID || '0', 10)
     this.lpTokenId = parseInt(process.env.LP_TOKEN_ID || '0', 10)
+    this.validateConfiguration(server)
   }
 
   getAppAddress(): string {
@@ -92,6 +94,11 @@ export class AlgorandService {
     const priceImpact = Math.abs(1 - execPrice / spotPrice) * 100
 
     return { assetIn: 'ALGO', assetOut: 'TUSDC', amountIn, amountOut, priceImpact, fee: feeAmount, exchangeRate: execPrice }
+  }
+
+  applySlippage(amountOut: bigint, slippageBps: number): bigint {
+    const safeBps = Math.max(0, Math.min(10_000, slippageBps))
+    return amountOut - (amountOut * BigInt(safeBps)) / 10_000n
   }
 
   /** Build unsigned swap ALGO → Asset B transaction group */
@@ -189,6 +196,9 @@ export class AlgorandService {
 
   /** Submit signed transactions to the network */
   async submitSignedTxns(signedTxns: string[]): Promise<{ txId: string; confirmedRound: number }> {
+    if (signedTxns.length === 0) {
+      throw new Error('NO_SIGNED_TXNS')
+    }
     const decoded = signedTxns.map((s) => new Uint8Array(Buffer.from(s, 'base64')))
     const merged = new Uint8Array(decoded.reduce((a, b) => a + b.length, 0))
     let offset = 0
@@ -219,5 +229,15 @@ export class AlgorandService {
   async getAlgoBalance(address: string): Promise<bigint> {
     const info = await this.algod.accountInformation(address).do()
     return BigInt((info as any).amount)
+  }
+
+  private validateConfiguration(server: string): void {
+    if (!this.appId || !this.assetBId || !this.lpTokenId) {
+      throw new Error('APP_ID, ASSET_B_ID, and LP_TOKEN_ID must be configured')
+    }
+    const network = (process.env.ALGORAND_NETWORK || '').toLowerCase()
+    if (network === 'testnet' && !server.includes('testnet')) {
+      throw new Error('ALGOD_SERVER must point to testnet when ALGORAND_NETWORK=testnet')
+    }
   }
 }
