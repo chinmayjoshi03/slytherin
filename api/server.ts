@@ -17,7 +17,20 @@ const app = express()
 const server = createServer(app)
 
 // ── Middleware ──
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'", 'ws:', 'wss:'],
+      },
+    },
+  })
+)
 app.use(cors())
 app.use(express.json())
 app.use(globalLimiter)

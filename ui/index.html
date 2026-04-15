@@ -3,94 +3,107 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Slytherin DEX — API-first decentralized exchange developer playground for Algorand" />
     <title>Slytherin DEX Developer Playground</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 24px; max-width: 900px; }
-      .row { display: grid; grid-template-columns: 180px 1fr; gap: 8px; margin-bottom: 8px; }
-      input, select, button, textarea { padding: 8px; font-size: 14px; }
-      textarea { width: 100%; min-height: 120px; }
-      .actions { display: flex; gap: 8px; margin: 12px 0; }
-      pre { background: #f4f4f4; padding: 12px; overflow: auto; }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>Slytherin DEX Playground</h1>
-    <p>Developer console for quote and transaction build/submit flow.</p>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <div class="header__logo">
+          <div class="header__icon">🐍</div>
+          <h1 class="header__title">Slytherin DEX</h1>
+        </div>
+        <p class="header__subtitle">
+          Developer Playground &mdash; API-first decentralized exchange on Algorand
+        </p>
+        <div class="header__badge">
+          <span class="status-badge">
+            <span class="status-badge__dot"></span>
+            Testnet
+          </span>
+        </div>
+      </header>
 
-    <div class="row"><label>Sender Address</label><input id="sender" placeholder="ALGO address" /></div>
-    <div class="row"><label>Direction</label><select id="direction"><option value="algo_to_asset">ALGO → Asset</option><option value="asset_to_algo">Asset → ALGO</option></select></div>
-    <div class="row"><label>Amount (micro)</label><input id="amountIn" value="1000000" /></div>
-    <div class="row"><label>Slippage (bps)</label><input id="slippageBps" value="100" /></div>
-    <div class="row"><label>Auth Token (JWT)</label><input id="token" placeholder="Bearer token from /health/auth/verify" /></div>
+      <!-- Configuration -->
+      <section class="card" id="config-card">
+        <div class="card__title">
+          <span class="card__title-dot card__title-dot--blue"></span>
+          Configuration
+        </div>
+        <div class="form-row">
+          <label for="sender">Sender Address</label>
+          <input id="sender" placeholder="Enter your Algorand address" />
+        </div>
+        <div class="form-row">
+          <label for="direction">Direction</label>
+          <select id="direction">
+            <option value="algo_to_asset">ALGO → Asset</option>
+            <option value="asset_to_algo">Asset → ALGO</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="amountIn">Amount (micro)</label>
+          <input id="amountIn" value="1000000" />
+        </div>
+        <div class="form-row">
+          <label for="slippageBps">Slippage (bps)</label>
+          <input id="slippageBps" value="100" />
+        </div>
+        <div class="form-row">
+          <label for="token">Auth Token</label>
+          <input id="token" placeholder="JWT from /health/auth/verify" />
+        </div>
+      </section>
 
-    <div class="actions">
-      <button id="btnReserves">Get Reserves</button>
-      <button id="btnQuote">Get Quote</button>
-      <button id="btnExecute">Execute Swap (Build Unsigned)</button>
-      <button id="btnSubmit">Submit Signed Txns</button>
+      <!-- Actions -->
+      <section class="card">
+        <div class="card__title">
+          <span class="card__title-dot card__title-dot--green"></span>
+          Actions
+        </div>
+        <div class="actions">
+          <button id="btnReserves" class="btn-primary">📊 Get Reserves</button>
+          <button id="btnQuote" class="btn-primary">💱 Get Quote</button>
+          <button id="btnExecute" class="btn-green">⚡ Execute Swap</button>
+          <button id="btnSubmit" class="btn-secondary">📤 Submit Signed</button>
+        </div>
+      </section>
+
+      <!-- Transactions -->
+      <section class="card">
+        <div class="card__title">
+          <span class="card__title-dot card__title-dot--purple"></span>
+          Transactions
+        </div>
+        <div class="txn-group">
+          <div class="txn-group__item">
+            <label for="unsignedTxns">Unsigned Txns</label>
+            <textarea id="unsignedTxns" placeholder='["base64tx1","base64tx2"]'></textarea>
+          </div>
+          <div class="txn-group__item">
+            <label for="signedTxns">Signed Txns</label>
+            <textarea id="signedTxns" placeholder='["base64signed1","base64signed2"]'></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section class="card output-section">
+        <div class="card__title">
+          <span class="card__title-dot card__title-dot--amber"></span>
+          Response Output
+        </div>
+        <pre id="output">{}</pre>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>Slytherin DEX &mdash; Frontendless, API-first &middot; <a href="/api/v1">API Docs</a></p>
+      </footer>
     </div>
 
-    <div class="row"><label>Unsigned Txns</label><textarea id="unsignedTxns" placeholder='["base64tx1","base64tx2"]'></textarea></div>
-    <div class="row"><label>Signed Txns</label><textarea id="signedTxns" placeholder='["base64signed1","base64signed2"]'></textarea></div>
-
-    <h3>Output</h3>
-    <pre id="output">{}</pre>
-
-    <script>
-      const output = document.getElementById('output')
-      const setOutput = (data) => { output.textContent = JSON.stringify(data, null, 2) }
-      const token = () => document.getElementById('token').value.trim()
-      const authHeaders = () => token() ? { Authorization: `Bearer ${token()}` } : {}
-
-      async function api(path, options = {}) {
-        const response = await fetch(`/api/v1${path}`, {
-          ...options,
-          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-        })
-        const body = await response.json()
-        if (!response.ok) throw body
-        return body
-      }
-
-      document.getElementById('btnReserves').onclick = async () => {
-        try { setOutput(await api('/market/reserves')) } catch (e) { setOutput(e) }
-      }
-
-      document.getElementById('btnQuote').onclick = async () => {
-        const direction = document.getElementById('direction').value
-        const amountIn = document.getElementById('amountIn').value
-        const slippageBps = document.getElementById('slippageBps').value
-        try { setOutput(await api(`/swap/quote?direction=${direction}&amountIn=${amountIn}&slippageBps=${slippageBps}`)) } catch (e) { setOutput(e) }
-      }
-
-      document.getElementById('btnExecute').onclick = async () => {
-        const sender = document.getElementById('sender').value
-        const direction = document.getElementById('direction').value
-        const amountIn = document.getElementById('amountIn').value
-        const slippageBps = Number(document.getElementById('slippageBps').value)
-        try {
-          const data = await api('/swap/execute', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ sender, direction, amountIn, slippageBps }),
-          })
-          document.getElementById('unsignedTxns').value = JSON.stringify(data.transactions, null, 2)
-          setOutput(data)
-        } catch (e) { setOutput(e) }
-      }
-
-      document.getElementById('btnSubmit').onclick = async () => {
-        try {
-          const signedTxns = JSON.parse(document.getElementById('signedTxns').value || '[]')
-          const data = await api('/swap/submit', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ signedTxns }),
-          })
-          data.explorer = `https://testnet.algoexplorer.io/tx/${data.txId}`
-          setOutput(data)
-        } catch (e) { setOutput(e) }
-      }
-    </script>
+    <script src="app.js"></script>
   </body>
 </html>

@@ -104,10 +104,14 @@ export class AlgorandService {
   /** Build unsigned swap ALGO → Asset B transaction group */
   async buildSwapAlgoForAsset(sender: string, amountIn: bigint, minOutput: bigint): Promise<string[]> {
     const sp = await this.algod.getTransactionParams().do()
+    const minFee = Number((sp as any).minFee ?? sp.fee ?? 1000)
     const appAddr = this.getAppAddress()
 
     const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender, receiver: appAddr, amount: amountIn, suggestedParams: sp,
+      sender,
+      receiver: appAddr,
+      amount: amountIn,
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
     const appCallTxn = algosdk.makeApplicationCallTxnFromObject({
       sender,
@@ -118,7 +122,7 @@ export class AlgorandService {
         algosdk.encodeUint64(minOutput),
       ],
       foreignAssets: [this.assetBId],
-      suggestedParams: { ...sp, fee: BigInt(sp.fee) * 2n, flatFee: true },
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
 
     const group = algosdk.assignGroupID([payTxn, appCallTxn])
@@ -128,10 +132,15 @@ export class AlgorandService {
   /** Build unsigned swap Asset B → ALGO transaction group */
   async buildSwapAssetForAlgo(sender: string, amountIn: bigint, minOutput: bigint): Promise<string[]> {
     const sp = await this.algod.getTransactionParams().do()
+    const minFee = Number((sp as any).minFee ?? sp.fee ?? 1000)
     const appAddr = this.getAppAddress()
 
     const axferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender, receiver: appAddr, amount: amountIn, assetIndex: this.assetBId, suggestedParams: sp,
+      sender,
+      receiver: appAddr,
+      amount: amountIn,
+      assetIndex: this.assetBId,
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
     const appCallTxn = algosdk.makeApplicationCallTxnFromObject({
       sender,
@@ -142,7 +151,7 @@ export class AlgorandService {
         algosdk.encodeUint64(minOutput),
       ],
       foreignAssets: [this.assetBId],
-      suggestedParams: { ...sp, fee: BigInt(sp.fee) * 2n, flatFee: true },
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
 
     const group = algosdk.assignGroupID([axferTxn, appCallTxn])
@@ -152,13 +161,21 @@ export class AlgorandService {
   /** Build unsigned add liquidity transaction group */
   async buildAddLiquidity(sender: string, amountAlgo: bigint, amountB: bigint): Promise<string[]> {
     const sp = await this.algod.getTransactionParams().do()
+    const minFee = Number((sp as any).minFee ?? sp.fee ?? 1000)
     const appAddr = this.getAppAddress()
 
     const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender, receiver: appAddr, amount: amountAlgo, suggestedParams: sp,
+      sender,
+      receiver: appAddr,
+      amount: amountAlgo,
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
     const axferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender, receiver: appAddr, amount: amountB, assetIndex: this.assetBId, suggestedParams: sp,
+      sender,
+      receiver: appAddr,
+      amount: amountB,
+      assetIndex: this.assetBId,
+      suggestedParams: { ...sp, fee: minFee, flatFee: true },
     })
     const appCallTxn = algosdk.makeApplicationCallTxnFromObject({
       sender,
@@ -166,7 +183,7 @@ export class AlgorandService {
       onComplete: algosdk.OnApplicationComplete.NoOpOC,
       appArgs: [algosdk.ABIMethod.fromSignature('addLiquidity(pay,axfer)uint64').getSelector()],
       foreignAssets: [this.assetBId, this.lpTokenId],
-      suggestedParams: { ...sp, fee: BigInt(sp.fee) * 3n, flatFee: true },
+      suggestedParams: { ...sp, fee: minFee * 3, flatFee: true },
     })
 
     const group = algosdk.assignGroupID([payTxn, axferTxn, appCallTxn])
@@ -176,10 +193,15 @@ export class AlgorandService {
   /** Build unsigned remove liquidity transaction group */
   async buildRemoveLiquidity(sender: string, lpAmount: bigint): Promise<string[]> {
     const sp = await this.algod.getTransactionParams().do()
+    const minFee = Number((sp as any).minFee ?? sp.fee ?? 1000)
     const appAddr = this.getAppAddress()
 
     const lpXferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender, receiver: appAddr, amount: lpAmount, assetIndex: this.lpTokenId, suggestedParams: sp,
+      sender,
+      receiver: appAddr,
+      amount: lpAmount,
+      assetIndex: this.lpTokenId,
+      suggestedParams: { ...sp, fee: minFee * 2, flatFee: true },
     })
     const appCallTxn = algosdk.makeApplicationCallTxnFromObject({
       sender,
@@ -187,7 +209,7 @@ export class AlgorandService {
       onComplete: algosdk.OnApplicationComplete.NoOpOC,
       appArgs: [algosdk.ABIMethod.fromSignature('removeLiquidity(axfer)void').getSelector()],
       foreignAssets: [this.assetBId, this.lpTokenId],
-      suggestedParams: { ...sp, fee: BigInt(sp.fee) * 3n, flatFee: true },
+      suggestedParams: { ...sp, fee: minFee * 3, flatFee: true },
     })
 
     const group = algosdk.assignGroupID([lpXferTxn, appCallTxn])
@@ -200,11 +222,7 @@ export class AlgorandService {
       throw new Error('NO_SIGNED_TXNS')
     }
     const decoded = signedTxns.map((s) => new Uint8Array(Buffer.from(s, 'base64')))
-    const merged = new Uint8Array(decoded.reduce((a, b) => a + b.length, 0))
-    let offset = 0
-    for (const d of decoded) { merged.set(d, offset); offset += d.length }
-
-    const result = await this.algod.sendRawTransaction(merged).do()
+    const result = await this.algod.sendRawTransaction(decoded).do()
     const txId = (result as any).txId ?? (result as any).txid
     const confirmed = await algosdk.waitForConfirmation(this.algod, txId, 4)
     return {

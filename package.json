@@ -13,7 +13,8 @@
     "api:start": "ts-node --transpile-only -r dotenv/config api/server.ts",
     "cli": "ts-node --transpile-only -r dotenv/config cli/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "webhook:receiver": "ts-node --transpile-only -r dotenv/config scripts/webhook-receiver.ts"
   },
   "engines": {
     "node": ">=22.0",

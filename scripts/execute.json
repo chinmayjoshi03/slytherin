@@ -1,0 +1,10 @@
+{
+    "transactions": [
+        "iqNhbXRko2ZlZc0H0KJmds4DuKXYo2dlbqx0ZXN0bmV0LXYxLjCiZ2jEIEhjtRiks8hOyBDyLU8QgcsPcfBZp6wg3sYvf3DlCToio2dycMQgEgsedELi8lbcnfr8IvLKcKj9e8hynV6MfKH6kHFCB2+ibHbOA7ipwKNyY3bEICe6ddhEnvu0wgZndVZ/ayeCj4sEEAYiQN1/JGnBPAWOo3NuZMQg524MQAXcI8GvWm3N4G3Ql3z35YVrILluI7tyznmj05ikdHlwZaNwYXk=",
+        "i6RhcGFhksQE9L8Oi8QIAAAAAAAAACekYXBhc5HOLTnTY6RhcGlkzi0502KjZmVlzQfQomZ2zgO4pdijZ2VurHRlc3RuZXQtdjEuMKJnaMQgSGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiKjZ3JwxCASCx50QuLyVtyd+vwi8spwqP17yHKdXox8ofqQcUIHb6Jsds4DuKnAo3NuZMQg524MQAXcI8GvWm3N4G3Ql3z35YVrILluI7tyznmj05ikdHlwZaRhcHBs"
+    ],
+    "message": "Sign these transactions with your wallet and submit via /swap/submit",
+    "direction": "algo_to_asset",
+    "amountIn": "100",
+    "minOutput": "39"
+}
