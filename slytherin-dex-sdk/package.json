@@ -1,0 +1,39 @@
+{
+  "name": "slytherin-dex-sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TypeScript SDK for the Slytherin DEX — swap, liquidity, and webhook APIs on Algorand",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "algorand",
+    "dex",
+    "sdk",
+    "swap",
+    "liquidity",
+    "slytherin"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

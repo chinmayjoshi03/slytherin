@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slytherin DEX — SDK Demo</title>
+    <meta name="description" content="Live demo of the slytherin-dex-sdk TypeScript package for the Slytherin DEX on Algorand." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- ===== Top nav ===== -->
+    <nav class="topnav">
+      <div class="topnav__brand">
+        <span class="topnav__icon">🐍</span>
+        <span class="topnav__name">Slytherin <span class="topnav__highlight">DEX</span></span>
+      </div>
+      <div class="topnav__badge">SDK Demo</div>
+    </nav>
+
+    <!-- ===== Hero ===== -->
+    <header class="hero">
+      <h1 class="hero__title">slytherin-dex-sdk</h1>
+      <p class="hero__sub">A lightweight TypeScript SDK for swapping, providing liquidity, and subscribing to events on the Slytherin DEX — powered by Algorand.</p>
+    </header>
+
+    <!-- ===== Main grid ===== -->
+    <main class="dashboard">
+
+      <!-- ---- Reserves Card ---- -->
+      <section class="card card--reserves" id="card-reserves">
+        <div class="card__header">
+          <h2 class="card__title">Pool Reserves</h2>
+          <button class="btn btn--sm" id="btn-reserves">Fetch</button>
+        </div>
+        <div class="card__body" id="reserves-output">
+          <p class="placeholder">Click <strong>Fetch</strong> to call <code>dex.getReserves()</code></p>
+        </div>
+      </section>
+
+      <!-- ---- Swap Card ---- -->
+      <section class="card card--swap" id="card-swap">
+        <div class="card__header">
+          <h2 class="card__title">Swap</h2>
+        </div>
+        <div class="card__body">
+          <div class="field-group">
+            <label class="field-label" for="swap-direction">Direction</label>
+            <select id="swap-direction" class="input">
+              <option value="algo_to_b">ALGO → SLYTH</option>
+              <option value="b_to_algo">SLYTH → ALGO</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="swap-amount">Amount In</label>
+            <input id="swap-amount" class="input" type="number" value="1000000" min="1" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="swap-slippage">Slippage (bps)</label>
+            <input id="swap-slippage" class="input" type="number" value="50" min="1" max="10000" />
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--accent" id="btn-quote">Get Quote</button>
+            <button class="btn btn--primary" id="btn-execute">Execute Swap</button>
+          </div>
+          <div class="output-box" id="swap-output"></div>
+        </div>
+      </section>
+
+      <!-- ---- Liquidity Card ---- -->
+      <section class="card card--lp" id="card-lp">
+        <div class="card__header">
+          <h2 class="card__title">Add Liquidity</h2>
+        </div>
+        <div class="card__body">
+          <div class="field-group">
+            <label class="field-label" for="lp-algo">ALGO Amount</label>
+            <input id="lp-algo" class="input" type="number" value="5000000" min="1" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="lp-b">SLYTH Amount</label>
+            <input id="lp-b" class="input" type="number" value="10000" min="1" />
+          </div>
+          <button class="btn btn--primary" id="btn-lp">Add Liquidity</button>
+          <div class="output-box" id="lp-output"></div>
+        </div>
+      </section>
+
+      <!-- ---- Webhook Card ---- -->
+      <section class="card card--webhook" id="card-webhook">
+        <div class="card__header">
+          <h2 class="card__title">Register Webhook</h2>
+        </div>
+        <div class="card__body">
+          <div class="field-group">
+            <label class="field-label" for="wh-url">Callback URL</label>
+            <input id="wh-url" class="input" type="url" value="https://example.com/hooks/slytherin" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Events</label>
+            <div class="checkbox-group">
+              <label class="checkbox"><input type="checkbox" value="swap.completed" checked /><span>swap.completed</span></label>
+              <label class="checkbox"><input type="checkbox" value="swap.failed" /><span>swap.failed</span></label>
+              <label class="checkbox"><input type="checkbox" value="liquidity.added" checked /><span>liquidity.added</span></label>
+              <label class="checkbox"><input type="checkbox" value="liquidity.removed" /><span>liquidity.removed</span></label>
+              <label class="checkbox"><input type="checkbox" value="reserves.updated" /><span>reserves.updated</span></label>
+            </div>
+          </div>
+          <button class="btn btn--primary" id="btn-webhook">Register</button>
+          <div class="output-box" id="webhook-output"></div>
+        </div>
+      </section>
+
+      <!-- ---- Code Preview ---- -->
+      <section class="card card--code" id="card-code">
+        <div class="card__header">
+          <h2 class="card__title">SDK Usage — Code</h2>
+        </div>
+        <div class="card__body">
+          <pre class="code-block"><code id="code-preview">import { SlytherinDexClient } from "slytherin-dex-sdk";
+
+const dex = new SlytherinDexClient({
+  baseUrl: "https://api.slytherin.io",
+});
+
+// Fetch pool reserves
+const reserves = await dex.getReserves();
+
+// Get a swap quote (50 bps = 0.5 %)
+const quote = await dex.getQuote("algo_to_b", 1_000_000, 50);
+
+// Build unsigned swap txn group
+const swap = await dex.executeSwap(
+  "ALGO_SENDER_ADDRESS",
+  "algo_to_b",
+  1_000_000,
+  50,
+);
+
+// Sign &amp; submit
+const result = await dex.submitSwap(signedTxns);
+console.log(result.tx_id);</code></pre>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ===== Console log ===== -->
+    <section class="console-section">
+      <h2 class="console-section__title">SDK Console Log</h2>
+      <div class="console" id="console-log">
+        <p class="console__line console__line--info">Ready — click any button above to call the SDK.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Built with <span class="footer__heart">♥</span> on <strong>Algorand</strong> &nbsp;·&nbsp; slytherin-dex-sdk v1.0.0
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
