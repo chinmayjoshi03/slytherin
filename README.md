@@ -3,13 +3,17 @@
 > **The Stripe for DEX swaps.**  
 > No frontend. No custody. Just an API.
 
+[![Algorand](https://img.shields.io/badge/Algorand-Testnet-blue)](https://testnet.algoexplorer.io/application/758764386)
+[![App ID](https://img.shields.io/badge/App%20ID-758764386-green)](https://testnet.algoexplorer.io/application/758764386)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ---
 
 ## What We Built
 
 A fully on-chain AMM DEX on Algorand — with zero retail UI.
 
-Instead of a swap interface, we built the infrastructure layer that *powers* swap interfaces. Any fintech app, neobank, UPI wallet, or trading platform can offer token swaps with a single API call. No DeFi knowledge required. No wallet integration. No frontend to maintain.
+Instead of a swap interface, we built the **infrastructure layer** that *powers* swap interfaces. Any fintech app, neobank, UPI wallet, or trading platform can offer token swaps with a single API call. No DeFi knowledge required. No wallet integration. No frontend to maintain.
 
 ```
 Your App  ──►  POST /swap/execute  ──►  Algorand Testnet  ──►  Confirmed in 3.5s
@@ -58,6 +62,8 @@ Algorand's finality and fee structure are the only reason this is viable at prod
 │  Slippage enforced on-chain                              │
 └─────────────────────────────────────────────────────────┘
 ```
+
+→ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system diagram and data-flow walkthrough.
 
 ---
 
@@ -123,6 +129,28 @@ private _computeOutput(amountIn: uint64, reserveIn: uint64, reserveOut: uint64):
 | `getPrice()` | Read-only spot price |
 | `setFee(newFeeBps)` | Governor-only fee update |
 
+→ Full reference: [docs/CONTRACTS.md](docs/CONTRACTS.md)
+
+---
+
+## Quick Start
+
+```bash
+git clone https://github.com/YOUR_ORG/slytherin.git
+cd slytherin
+npm install
+cp .env.example .env
+# Set DEPLOYER_MNEMONIC in .env
+
+npm run deploy   # Deploy contract to testnet / localnet
+npm run dev      # Start API server
+```
+
+API: `http://localhost:3000/api/v1`  
+Dev UI: `http://localhost:3000/ui`
+
+→ Full guide: [SETUP.md](SETUP.md)
+
 ---
 
 ## API Reference
@@ -168,21 +196,9 @@ curl -X POST "http://localhost:3000/api/v1/swap/submit" \
   -d '{"signedTxns":["BASE64_SIGNED_TXN_1","BASE64_SIGNED_TXN_2"]}'
 ```
 
-### Liquidity
-
-```bash
-curl -X POST "http://localhost:3000/api/v1/liquidity/add" \
-  -H "Authorization: Bearer YOUR_JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"sender":"YOUR_ADDRESS","amountAlgo":"1000000","amountB":"500000"}'
-
-curl "http://localhost:3000/api/v1/liquidity/position/YOUR_ADDRESS"
-```
-
 ### Webhooks — react to every trade
 
 ```bash
-# Register your endpoint
 curl -X POST "http://localhost:3000/api/v1/webhooks/register" \
   -H "Authorization: Bearer YOUR_JWT" \
   -H "Content-Type: application/json" \
@@ -202,21 +218,28 @@ ws.onmessage = (e) => console.log(JSON.parse(e.data))
 // { type: "price_update", price: 0.482, reserveA: 10000000, reserveB: 4820000 }
 ```
 
+→ Full reference: [docs/API.md](docs/API.md)
+
 ---
 
-## Run Locally
+## SDK
 
 ```bash
-npm install
-cp .env.example .env
-# Set DEPLOYER_MNEMONIC and network config in .env
-
-npm run deploy   # Deploy contract to localnet / testnet
-npm run dev      # Start API server
+npm install slytherin-dex-sdk
 ```
 
-API: `http://localhost:3000/api/v1`  
-Dev UI: `http://localhost:3000/ui`
+```typescript
+import { SlytherinDexClient } from 'slytherin-dex-sdk'
+
+const dex = new SlytherinDexClient({ baseUrl: 'http://localhost:3000' })
+
+const quote = await dex.getQuote('algo_to_b', 1_000_000, 50)
+const { transactions } = await dex.executeSwap('YOUR_ADDRESS', 'algo_to_b', 1_000_000, 50)
+// sign locally, then:
+const result = await dex.submitSwap(signedTxns)
+```
+
+→ Full SDK docs: [slytherin-dex-sdk/README.md](slytherin-dex-sdk/README.md)
 
 ---
 
@@ -230,7 +253,9 @@ Dev UI: `http://localhost:3000/ui`
 | LP token | SLYDEX-LP (SDLP) |
 | Fee | 0.3% (30 bps) |
 
-Verify on explorer: `https://testnet.algoexplorer.io/application/758764386`
+Verify on explorer:
+- [AlgoExplorer](https://testnet.algoexplorer.io/application/758764386)
+- [Lora](https://lora.algokit.io/testnet/application/758764386)
 
 ---
 
@@ -239,11 +264,23 @@ Verify on explorer: `https://testnet.algoexplorer.io/application/758764386`
 | Layer | Technology |
 |---|---|
 | Smart contract | Algorand TypeScript (PuyaTS) → TEAL |
-| Contract tooling | AlgoKit, Puya compiler, ARC-4 |
+| Contract tooling | AlgoKit, Puya compiler, ARC-4, ARC-56 |
 | API server | Node.js + TypeScript + Express |
 | Chain client | algosdk |
 | Real-time | WebSocket (ws) |
 | Auth | Wallet signature challenge + JWT |
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [SETUP.md](SETUP.md) | Local setup guide (testnet & localnet) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flows, security |
+| [docs/CONTRACTS.md](docs/CONTRACTS.md) | Smart contract methods, math, error codes |
+| [docs/API.md](docs/API.md) | Full REST + WebSocket API reference |
+| [slytherin-dex-sdk/README.md](slytherin-dex-sdk/README.md) | TypeScript SDK reference |
 
 ---
 
