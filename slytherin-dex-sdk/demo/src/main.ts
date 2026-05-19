@@ -77,17 +77,17 @@ function formatNum(n: number, decimals = 6): string {
 // 3. Grab UI elements
 // ---------------------------------------------------------------------------
 const btnReserves = $("btn-reserves") as HTMLButtonElement;
-const btnQuote    = $("btn-quote") as HTMLButtonElement;
-const btnExecute  = $("btn-execute") as HTMLButtonElement;
-const btnLp       = $("btn-lp") as HTMLButtonElement;
-const btnWebhook  = $("btn-webhook") as HTMLButtonElement;
+const btnQuote = $("btn-quote") as HTMLButtonElement;
+const btnExecute = $("btn-execute") as HTMLButtonElement;
+const btnLp = $("btn-lp") as HTMLButtonElement;
+const btnWebhook = $("btn-webhook") as HTMLButtonElement;
 
 const selDirection = $("swap-direction") as HTMLSelectElement;
-const inpAmount    = $("swap-amount") as HTMLInputElement;
-const inpSlippage  = $("swap-slippage") as HTMLInputElement;
-const inpLpAlgo    = $("lp-algo") as HTMLInputElement;
-const inpLpB       = $("lp-b") as HTMLInputElement;
-const inpWhUrl     = $("wh-url") as HTMLInputElement;
+const inpAmount = $("swap-amount") as HTMLInputElement;
+const inpSlippage = $("swap-slippage") as HTMLInputElement;
+const inpLpAlgo = $("lp-algo") as HTMLInputElement;
+const inpLpB = $("lp-b") as HTMLInputElement;
+const inpWhUrl = $("wh-url") as HTMLInputElement;
 
 // ---------------------------------------------------------------------------
 // 4. Wire up UI actions
@@ -107,16 +107,16 @@ btnReserves.addEventListener("click", () => {
         <thead><tr><th>Asset</th><th>Symbol</th><th>Reserves</th><th>Decimals</th></tr></thead>
         <tbody>
           ${res.reserves
-            .map(
-              (r) =>
-                `<tr>
+        .map(
+          (r) =>
+            `<tr>
                   <td>${r.asset_id === 0 ? "—" : r.asset_id}</td>
                   <td>${r.symbol}</td>
                   <td>${formatNum(r.reserves, r.decimals)}</td>
                   <td>${r.decimals}</td>
                 </tr>`,
-            )
-            .join("")}
+        )
+        .join("")}
         </tbody>
       </table>
       <p class="reserves-lp">LP Supply: <strong>${formatNum(res.lp_token_supply)}</strong> &nbsp;·&nbsp; Pool App ID: <strong>${res.pool_app_id}</strong></p>
